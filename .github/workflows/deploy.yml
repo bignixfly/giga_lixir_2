@@ -40,23 +40,38 @@ jobs:
         # 登录 Gigalixir
         gigalixir login -e "$GIGALIXIR_EMAIL" -p "$GIGALIXIR_PASSWORD" -y
         
-        # 初始化并部署
+        # 创建新的临时目录并初始化
+        TEMP_DIR=$(mktemp -d)
+        cd $TEMP_DIR
+        
+        # 复制需要的文件到临时目录
+        cp $GITHUB_WORKSPACE/index.js .
+        cp $GITHUB_WORKSPACE/package.json .
+        cp $GITHUB_WORKSPACE/apps.html .
+        
+        # 初始化新的 git 仓库
         git init
         git add index.js package.json apps.html
         
+        # 强制创建提交，即使文件没有更改
         if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          git commit -m "Manual deployment - ${{ github.event.inputs.deploy_reason }} - $(date)"
+          git commit --allow-empty -m "Manual deployment - ${{ github.event.inputs.deploy_reason }} - $(date)"
         else
-          git commit -m "Scheduled deployment - $(date)"
+          git commit --allow-empty -m "Scheduled deployment - $(date)"
         fi
         
+        # 添加远程仓库并推送
         git remote add gigalixir "https://git.gigalixir.com/${GIGALIXIR_APP_NAME}.git"
         git push gigalixir main --force
         
         echo "✅ 部署完成 - $(date)"
+        
+        # 清理临时目录
+        cd $GITHUB_WORKSPACE
+        rm -rf $TEMP_DIR
       
     - name: Cleanup credentials
-      if: always()  # 确保无论部署成功与否都执行清理
+      if: always()
       run: |
         echo "🧹 清理凭证..."
         if [ -f ~/.netrc ]; then
@@ -66,7 +81,6 @@ jobs:
           echo ".netrc 文件不存在"
         fi
         
-        # 额外检查其他可能的凭证文件
         rm -f ~/.gigalixir/credentials
         rm -rf ~/.gigalixir
         
@@ -85,7 +99,6 @@ jobs:
           echo "失败应用: ${{ secrets.GIGALIXIR_APP_NAME }}"
         fi
         
-        # 最后再次确认清理
         if [ -f ~/.netrc ]; then
           echo "⚠️ 警告: .netrc 文件仍然存在"
           rm -f ~/.netrc
