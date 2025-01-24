@@ -20,8 +20,8 @@ jobs:
       
     - name: Set up Git
       run: |
-        git config --global user.email "sharkworks773@outlook.com"
-        git config --global user.name "sharkworks"
+        git config --global user.email "glade@outlook.com"
+        git config --global user.name "glade"
         
     - name: Deploy to Gigalixir
       env:
