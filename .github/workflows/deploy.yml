@@ -49,8 +49,11 @@ jobs:
         cp $GITHUB_WORKSPACE/package.json .
         cp $GITHUB_WORKSPACE/apps.html .
         
-        # 初始化新的 git 仓库
+        # 初始化新的 git 仓库并设置为 main 分支
         git init
+        git checkout -b main  # 创建并切换到 main 分支
+        
+        # 添加并提交文件
         git add index.js package.json apps.html
         
         # 强制创建提交，即使文件没有更改
@@ -62,7 +65,9 @@ jobs:
         
         # 添加远程仓库并推送
         git remote add gigalixir "https://git.gigalixir.com/${GIGALIXIR_APP_NAME}.git"
-        git push gigalixir main --force
+        
+        # 确保推送到 main 分支
+        git push gigalixir main:main --force
         
         echo "✅ 部署完成 - $(date)"
         
