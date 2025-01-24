@@ -1,0 +1,94 @@
+name: Deploy to Gigalixir
+
+on:
+  schedule:
+    - cron: '0 */23 * * *'
+  workflow_dispatch:
+    inputs:
+      deploy_reason:
+        description: 'gengxindaima'
+        required: false
+        default: 'shoudongbushu'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      
+    - name: Set up Git
+      run: |
+        git config --global user.email "sharkworks773@outlook.com"
+        git config --global user.name "sharkworks"
+        
+    - name: Deploy to Gigalixir
+      env:
+        GIGALIXIR_EMAIL: ${{ secrets.GIGALIXIR_EMAIL }}
+        GIGALIXIR_PASSWORD: ${{ secrets.GIGALIXIR_PASSWORD }}
+        GIGALIXIR_APP_NAME: ${{ secrets.GIGALIXIR_APP_NAME }}
+      run: |
+        echo "🚀 开始部署 - $(date)"
+        
+        # 安装 Gigalixir CLI
+        pip3 install gigalixir
+        
+        # 确保开始时没有遗留的 .netrc 文件
+        rm -f ~/.netrc
+        
+        # 登录 Gigalixir
+        gigalixir login -e "$GIGALIXIR_EMAIL" -p "$GIGALIXIR_PASSWORD" -y
+        
+        # 初始化并部署
+        git init
+        git add index.js package.json apps.html
+        
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          git commit -m "Manual deployment - ${{ github.event.inputs.deploy_reason }} - $(date)"
+        else
+          git commit -m "Scheduled deployment - $(date)"
+        fi
+        
+        git remote add gigalixir "https://git.gigalixir.com/${GIGALIXIR_APP_NAME}.git"
+        git push gigalixir main --force
+        
+        echo "✅ 部署完成 - $(date)"
+      
+    - name: Cleanup credentials
+      if: always()  # 确保无论部署成功与否都执行清理
+      run: |
+        echo "🧹 清理凭证..."
+        if [ -f ~/.netrc ]; then
+          rm -f ~/.netrc
+          echo "已删除 .netrc 文件"
+        else
+          echo ".netrc 文件不存在"
+        fi
+        
+        # 额外检查其他可能的凭证文件
+        rm -f ~/.gigalixir/credentials
+        rm -rf ~/.gigalixir
+        
+        echo "✅ 凭证清理完成"
+
+    - name: Deployment Status
+      if: always()
+      run: |
+        if [ "${{ job.status }}" = "success" ]; then
+          echo "✅ 部署成功完成"
+          echo "部署时间: $(date)"
+          echo "部署应用: ${{ secrets.GIGALIXIR_APP_NAME }}"
+        else
+          echo "❌ 部署失败"
+          echo "失败时间: $(date)"
+          echo "失败应用: ${{ secrets.GIGALIXIR_APP_NAME }}"
+        fi
+        
+        # 最后再次确认清理
+        if [ -f ~/.netrc ]; then
+          echo "⚠️ 警告: .netrc 文件仍然存在"
+          rm -f ~/.netrc
+        else
+          echo "✅ 确认 .netrc 已清理"
+        fi
